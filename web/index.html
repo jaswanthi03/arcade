@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hidden-Rule Arcade · Color Lab</title>
+  <style>
+    :root { color-scheme:dark; --bg:#0b1220; --panel:#152136; --panel2:#1c2a43;
+            --edge:#34465f; --type:#f1f6ff; --muted:#9cacc6; --accent:#74e0c3; }
+    * {box-sizing:border-box}
+    body {margin:0;background:radial-gradient(ellipse at 5% -15%,#204061 0%,transparent 46%),var(--bg);
+          font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--type);min-height:100vh}
+    main {max-width:1120px;margin:0 auto;padding:42px 22px 65px}
+    header {display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:28px}
+    .brand {letter-spacing:.2em;color:var(--accent);font-weight:800;font-size:12px}
+    .tag {border:1px solid var(--edge);border-radius:30px;padding:7px 12px;color:var(--muted);font-size:12px}
+    h1 {font-size:clamp(30px,4.8vw,54px);line-height:1.07;margin:8px 0 12px;letter-spacing:-.04em}
+    .intro {color:var(--muted);max-width:620px;margin-bottom:30px;line-height:1.55}
+    .layout {display:grid;grid-template-columns:minmax(0,1.5fr) minmax(295px,1fr);gap:18px}
+    .panel {border:1px solid var(--edge);background:linear-gradient(140deg,#16253b,#111d30);
+            border-radius:19px;padding:23px;box-shadow:0 18px 45px #07101d66}
+    .section-title {margin:0 0 17px;font-weight:700;font-size:17px}
+    .levelbar {display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between;margin-bottom:23px}
+    select,button,textarea {font:inherit}
+    select {background:var(--panel2);color:var(--type);border:1px solid var(--edge);border-radius:9px;padding:10px;max-width:100%}
+    #board {display:grid;gap:3px;margin:auto;width:max-content;max-width:100%;border:1px solid #40556e;
+            border-radius:9px;padding:5px;background:#101b2c;box-shadow:0 16px 50px #061220aa}
+    .cell {height:clamp(23px,4.1vw,43px);width:clamp(23px,4.1vw,43px);display:grid;place-items:center;
+           border-radius:4px;position:relative;overflow:hidden}
+    .floor {background:#26374f} .wall {background:repeating-linear-gradient(135deg,#536987,#536987 5px,#4a607e 5px,#4a607e 10px)}
+    .goal {background:#504527} .goal:before {content:'★';font-size:25px;color:#ffd86d}
+    .red_tile,.blue_tile {background:#26374f}
+    .red_tile:before,.blue_tile:before {content:'';height:65%;width:65%;border-radius:100%;box-shadow:0 0 12px currentColor}
+    .red_tile:before {background:#e86a78;color:#e86a78} .blue_tile:before {background:#55b6ef;color:#55b6ef}
+    .red_barrier,.blue_barrier,.neutral_barrier {border:2px solid currentColor}
+    .red_barrier {color:#f18490;background:repeating-linear-gradient(0deg,#95344b,#95344b 5px,#572d40 5px,#572d40 10px)}
+    .blue_barrier {color:#79ceff;background:repeating-linear-gradient(0deg,#21668e,#21668e 5px,#1d3f66 5px,#1d3f66 10px)}
+    .neutral_barrier {color:#cbd5e1;background:repeating-linear-gradient(0deg,#64748b,#64748b 5px,#334155 5px,#334155 10px)}
+    .player {width:68%;height:68%;z-index:1;border:3px solid #fff;border-radius:8px;background:#aeb9cb;
+             box-shadow:0 0 0 3px #07101b88,0 0 14px #ffffff77}
+    .player.red {background:#e86a78} .player.blue {background:#55b6ef}
+    .board-footer {display:flex;justify-content:space-between;gap:10px;color:var(--muted);
+                   font-size:12px;margin-top:19px;flex-wrap:wrap}
+    .controls {display:grid;grid-template-columns:repeat(3,52px);gap:5px;justify-content:center;margin-top:19px}
+    button {cursor:pointer;border:1px solid #49647f;border-radius:10px;padding:10px 14px;color:var(--type);background:#223b59}
+    button:hover:not(:disabled) {background:#305579} button:disabled {cursor:not-allowed;opacity:.43}
+    .arrow {font-size:23px;min-height:46px;padding:7px}
+    .primary {background:#1f735f;border-color:#46bba0;font-weight:700}
+    .primary:hover:not(:disabled) {background:#278d73}
+    .subtle {background:transparent}
+    .metrics {display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:20px}
+    .metric {background:var(--panel2);padding:12px 15px;border-radius:10px}
+    .metric small {display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
+    .metric b {font-variant-numeric:tabular-nums;font-size:23px}
+    .feedback {border:1px solid var(--edge);border-radius:10px;padding:13px;background:#1c2a43;
+               margin-bottom:21px;color:#c9d7ec;min-height:51px}
+    .feedback.success {border-color:#3d9d80;color:#84f1cf}
+    .label {display:block;font-size:12px;color:var(--muted);font-weight:700;margin-bottom:8px}
+    textarea {width:100%;border:1px solid var(--edge);border-radius:11px;color:var(--type);
+              background:#0f1b2d;resize:vertical;min-height:115px;padding:11px;line-height:1.45}
+    .buttonbar {display:flex;gap:9px;flex-wrap:wrap;margin-top:11px}
+    .footnote {font-size:12px;color:var(--muted);line-height:1.5;margin-top:15px}
+    #notice {font-size:12px;margin-top:8px;min-height:18px;color:var(--accent)}
+    @media (max-width:780px) {.layout{grid-template-columns:1fr}.panel{padding:17px}.cell{height:clamp(23px,7.6vw,40px);width:clamp(23px,7.6vw,40px)}}
+  </style>
+</head>
+<body>
+<main>
+  <header><div class="brand">HIDDEN-RULE ARCADE / 001</div><div class="tag">Research prototype · Python engine</div></header>
+  <h1>THE COLOR LAB</h1>
+  <p class="intro">Reach the golden goal. Nobody will tell you how the room works. Explore, pay attention to what changes, and test your ideas.</p>
+  <div class="layout">
+    <section class="panel" aria-label="Puzzle game">
+      <div class="levelbar">
+        <label for="level"><span class="label">CURRENT EXPERIMENT</span><select id="level">
+          <option value="discovery">01 · Discovery</option>
+          <option value="practice">02 · Practice</option>
+          <option value="transfer">03 · Transfer</option>
+          <option value="discovery_2">04 · Discovery</option>
+          <option value="transfer_2">05 · Transfer</option>
+        </select></label>
+        <button id="reset" class="subtle">↺ Reset room</button>
+      </div>
+      <div id="board" role="img" aria-label="Puzzle grid"></div>
+      <div class="board-footer"><span>■ You &nbsp; ★ Goal</span><span>Use arrow keys, WASD, or controls</span></div>
+      <div class="controls" aria-label="Movement controls">
+        <span></span><button class="arrow" data-action="up" aria-label="Move up">↑</button><span></span>
+        <button class="arrow" data-action="left" aria-label="Move left">←</button>
+        <button class="arrow" data-action="down" aria-label="Move down">↓</button>
+        <button class="arrow" data-action="right" aria-label="Move right">→</button>
+      </div>
+    </section>
+    <aside class="panel">
+      <h2 class="section-title">Experiment monitor</h2>
+      <div class="metrics">
+        <div class="metric"><small>Actions attempted</small><b id="attempts">0</b></div>
+        <div class="metric"><small>Successful moves</small><b id="valid">0</b></div>
+        <div class="metric"><small>Blocked attempts</small><b id="invalid">0</b></div>
+        <div class="metric"><small>Room resets</small><b id="resets">0</b></div>
+      </div>
+      <span class="label">LAST OBSERVATION</span><div class="feedback" id="feedback" role="status">Starting...</div>
+      <label class="label" for="explanation">WHAT RULE DO YOU THINK CONTROLS THIS ROOM?</label>
+      <textarea id="explanation" maxlength="1000" placeholder="Write your hypothesis. For example: I think... because when I tried..." ></textarea>
+      <div class="buttonbar"><button class="primary" id="save">Save hypothesis</button><button class="subtle" id="next">Next room →</button></div>
+      <div id="notice" aria-live="polite"></div>
+      <p class="footnote">This prototype records your actions and hypotheses locally in JSONL. Rules and solutions are never sent through the gameplay API.</p>
+    </aside>
+  </div>
+</main>
+<script>
+  const board = document.getElementById('board');
+  const level = document.getElementById('level');
+  const feedback = document.getElementById('feedback');
+  const notice = document.getElementById('notice');
+  const explanation = document.getElementById('explanation');
+  let sessionId = null, completed = false, busy = false;
+
+  async function post(endpoint, data) {
+    const response = await fetch(endpoint, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Request failed');
+    return result;
+  }
+  function show(data) {
+    const obs = data.observation;
+    completed = obs.completed;
+    board.style.gridTemplateColumns = `repeat(${obs.width}, max-content)`;
+    board.replaceChildren();
+    for (let y=0; y<obs.height; y++) for (let x=0; x<obs.width; x++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell ' + obs.grid[y][x];
+      if (obs.player.x === x && obs.player.y === y) {
+        const pawn = document.createElement('div');
+        pawn.className = 'player ' + obs.player.color;
+        cell.appendChild(pawn);
+      }
+      board.appendChild(cell);
+    }
+    document.getElementById('attempts').textContent = data.stats.attempts;
+    document.getElementById('valid').textContent = data.stats.valid_moves;
+    document.getElementById('invalid').textContent = data.stats.invalid_moves;
+    document.getElementById('resets').textContent = data.stats.resets;
+    feedback.textContent = completed ? 'Room solved! Explain your theory before continuing.' :
+      data.feedback === 'blocked' ? 'That action was blocked. What might explain it?' :
+      data.feedback === 'reset' ? 'Room restarted. Your previous actions remain logged.' :
+      data.feedback === 'moved' ? 'Moved. Watch the board for changes.' : 'Explore. Every action is an experiment.';
+    feedback.classList.toggle('success', completed);
+    document.querySelectorAll('[data-action]').forEach(b => b.disabled = completed);
+  }
+  async function newSession() {
+    if (busy) return;
+    busy = true; notice.textContent = '';
+    try {
+      const data = await post('/api/sessions', {level_id:level.value, role:'human'});
+      sessionId = data.session_id;
+      explanation.value = '';
+      show(data);
+    } catch(e) { notice.textContent = e.message; }
+    finally { busy = false; }
+  }
+  async function move(action) {
+    if (busy || completed || !sessionId) return;
+    busy = true;
+    try { show(await post('/api/actions', {session_id:sessionId,action})); }
+    catch(e) { notice.textContent = e.message; }
+    finally { busy = false; }
+  }
+  document.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', () => move(button.dataset.action)));
+  const keyMap = {ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right'};
+  document.addEventListener('keydown', e => {
+    if (['TEXTAREA','INPUT','SELECT'].includes(document.activeElement.tagName)) return;
+    const action = keyMap[e.key];
+    if (action) { e.preventDefault(); move(action); }
+  });
+  document.getElementById('reset').addEventListener('click', async () => {
+    if (busy || !sessionId) return;
+    busy = true;
+    try { show(await post('/api/reset', {session_id:sessionId})); }
+    catch(e) { notice.textContent = e.message; }
+    finally { busy = false; }
+  });
+  document.getElementById('save').addEventListener('click', async () => {
+    if (busy || !sessionId) return;
+    busy = true;
+    try {
+      await post('/api/explain', {session_id:sessionId,explanation:explanation.value});
+      notice.textContent = 'Hypothesis saved in the experiment log.';
+    } catch(e) { notice.textContent = e.message; }
+    finally { busy = false; }
+  });
+  const levels = ['discovery','practice','transfer','discovery_2','transfer_2'];
+  document.getElementById('next').addEventListener('click', () => {
+    const index = levels.indexOf(level.value);
+    if (index < levels.length-1) { level.value = levels[index+1]; newSession(); }
+    else notice.textContent = 'You have reached the final prototype room.';
+  });
+  level.addEventListener('change', newSession);
+  newSession();
+</script>
+</body>
+</html>
