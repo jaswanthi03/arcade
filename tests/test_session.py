@@ -112,6 +112,45 @@ class SessionTests(unittest.TestCase):
             self.assertEqual(ai_actions[-1]['outcome'], 'completed')
             self.assertTrue(ai_actions[-1]['state_after']['completed'])
 
+    def test_action_budget_and_runaway_loop_protection(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / 'budget.jsonl'
+            service = GameService(
+                path,
+                max_episode_actions=6,
+                max_session_actions=10,
+                max_resets=2,
+                max_consecutive_blocked=4,
+                max_repeated_blocked_action=2,
+            )
+            session_id = service.start(level_id='discovery_3', role='ai')['session_id']
+
+            # Repeated identical blocked action ('up' into wall) stops after 2 blocked attempts
+            self.assertFalse(service.act(session_id, 'up')['moved'])
+            self.assertFalse(service.act(session_id, 'up')['moved'])
+            with self.assertRaisesRegex(ValueError, 'Runaway loop detected'):
+                service.act(session_id, 'up')
+
+            # Event log did not record the rejected 3rd runaway call
+            events_after_loop = [json.loads(line) for line in path.read_text().splitlines()]
+            self.assertEqual(len(events_after_loop), 3)  # 1 session_start + 2 blocked actions
+
+            # Valid moves reset consecutive/repeated blocked counters, up to episode budget (6)
+            self.assertTrue(service.act(session_id, 'right')['moved'])  # attempt 3
+            self.assertTrue(service.act(session_id, 'left')['moved'])   # attempt 4
+            self.assertTrue(service.act(session_id, 'right')['moved'])  # attempt 5
+            self.assertTrue(service.act(session_id, 'left')['moved'])   # attempt 6
+            with self.assertRaisesRegex(ValueError, 'Episode action budget'):
+                service.act(session_id, 'right')
+
+            # Reset clears episode_attempts, allowing up to max_session_actions (10)
+            reset_resp = service.reset(session_id)
+            self.assertEqual(reset_resp['stats']['episode_attempts'], 0)
+            for action in ('right', 'left', 'right', 'left'):
+                self.assertTrue(service.act(session_id, action)['moved'])
+            with self.assertRaisesRegex(ValueError, 'Session action budget'):
+                service.act(session_id, 'right')
+
 
 if __name__ == '__main__':
     unittest.main()

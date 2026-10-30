@@ -20,6 +20,11 @@ from .levels import LEVELS, Level
 BASE_DIR = Path(__file__).resolve().parent.parent
 WEB_DIR = BASE_DIR / 'web'
 LOG_PATH = Path(os.environ.get('ARCADE_LOG', str(BASE_DIR / 'logs' / 'events.jsonl')))
+MAX_EPISODE_ACTIONS = int(os.environ.get('ARCADE_MAX_EPISODE_ACTIONS', '200'))
+MAX_SESSION_ACTIONS = int(os.environ.get('ARCADE_MAX_SESSION_ACTIONS', '500'))
+MAX_RESETS = int(os.environ.get('ARCADE_MAX_RESETS', '20'))
+MAX_CONSECUTIVE_BLOCKED = int(os.environ.get('ARCADE_MAX_CONSECUTIVE_BLOCKED', '8'))
+MAX_REPEATED_BLOCKED_ACTION = int(os.environ.get('ARCADE_MAX_REPEATED_BLOCKED_ACTION', '3'))
 
 
 @dataclass
@@ -31,8 +36,12 @@ class Session:
     state: State
     sequence: int = 0
     attempts: int = 0
+    episode_attempts: int = 0
     valid_moves: int = 0
     invalid_moves: int = 0
+    consecutive_blocked: int = 0
+    last_blocked_key: tuple[int, int, str] | None = None
+    repeated_blocked_count: int = 0
     resets: int = 0
     episode: int = 1
     explanations: list[str] = field(default_factory=list)
@@ -47,6 +56,7 @@ class Session:
             'moved': moved,
             'stats': {
                 'attempts': self.attempts,
+                'episode_attempts': self.episode_attempts,
                 'valid_moves': self.valid_moves,
                 'invalid_moves': self.invalid_moves,
                 'resets': self.resets,
@@ -56,9 +66,22 @@ class Session:
 
 
 class GameService:
-    def __init__(self, log_path: Path = LOG_PATH):
+    def __init__(
+        self,
+        log_path: Path = LOG_PATH,
+        max_episode_actions: int = MAX_EPISODE_ACTIONS,
+        max_session_actions: int = MAX_SESSION_ACTIONS,
+        max_resets: int = MAX_RESETS,
+        max_consecutive_blocked: int = MAX_CONSECUTIVE_BLOCKED,
+        max_repeated_blocked_action: int = MAX_REPEATED_BLOCKED_ACTION,
+    ):
         self.sessions: dict[str, Session] = {}
         self.log_path = log_path
+        self.max_episode_actions = max_episode_actions
+        self.max_session_actions = max_session_actions
+        self.max_resets = max_resets
+        self.max_consecutive_blocked = max_consecutive_blocked
+        self.max_repeated_blocked_action = max_repeated_blocked_action
         self.lock = Lock()
 
     def _event(self, session: Session, event_type: str, **fields):
@@ -109,14 +132,44 @@ class GameService:
             s = self._get(session_id)
             if s.state.completed:
                 raise ValueError('Level already complete; start another session')
+            if s.attempts >= self.max_session_actions:
+                raise ValueError(
+                    f'Session action budget ({self.max_session_actions}) exceeded; start a new session'
+                )
+            if s.episode_attempts >= self.max_episode_actions:
+                raise ValueError(
+                    f'Episode action budget ({self.max_episode_actions}) exceeded; reset or start a new session'
+                )
+            blocked_key = (s.state.x, s.state.y, action)
+            if (
+                s.last_blocked_key == blocked_key
+                and s.repeated_blocked_count >= self.max_repeated_blocked_action
+            ):
+                raise ValueError(
+                    'Runaway loop detected: repeated identical blocked action exceeded limit'
+                )
+            if s.consecutive_blocked >= self.max_consecutive_blocked:
+                raise ValueError(
+                    'Runaway loop detected: consecutive blocked actions exceeded limit; reset or move elsewhere'
+                )
             before = s.state
             result = step(s.level, s.state, action)
             s.state = result.state
             s.attempts += 1
+            s.episode_attempts += 1
             if result.moved:
                 s.valid_moves += 1
+                s.consecutive_blocked = 0
+                s.last_blocked_key = None
+                s.repeated_blocked_count = 0
             else:
                 s.invalid_moves += 1
+                s.consecutive_blocked += 1
+                if s.last_blocked_key == blocked_key:
+                    s.repeated_blocked_count += 1
+                else:
+                    s.last_blocked_key = blocked_key
+                    s.repeated_blocked_count = 1
             self._event(s, 'action', action=action, valid=result.moved,
                         outcome=result.feedback, blocked_by=result.blocked_by,
                         state_before=vars(before), state_after=vars(result.state))
@@ -125,8 +178,14 @@ class GameService:
     def reset(self, session_id) -> dict:
         with self.lock:
             s = self._get(session_id)
+            if s.resets >= self.max_resets:
+                raise ValueError(f'Session reset budget ({self.max_resets}) exceeded')
             s.resets += 1
             s.episode += 1
+            s.episode_attempts = 0
+            s.consecutive_blocked = 0
+            s.last_blocked_key = None
+            s.repeated_blocked_count = 0
             s.state = initial_state(s.level)
             self._event(s, 'reset', initial_state=vars(s.state))
             return s.public('reset')
