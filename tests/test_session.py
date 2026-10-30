@@ -78,6 +78,40 @@ class SessionTests(unittest.TestCase):
             self.assertEqual([e['valid'] for e in gate_events], [False, False, True])
             self.assertEqual([e['blocked_by'] for e in gate_events], ['gate', 'gate', None])
 
+    def test_delayed_gate_logging_completion_and_human_ai_parity(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / 'delayed.jsonl'
+            service = GameService(path)
+            seq = ['right', 'right', 'right', 'down', 'up', 'right', 'left', 'right', 'right', 'right', 'right', 'right']
+
+            human_session = service.start(level_id='discovery_3', role='human', participant_id='h_test')
+            ai_session = service.start(level_id='discovery_3', role='ai', participant_id='ai_test')
+
+            h_outcomes = []
+            a_outcomes = []
+            for action in seq:
+                h_res = service.act(human_session['session_id'], action)
+                a_res = service.act(ai_session['session_id'], action)
+                self.assertNotIn('switch_countdown', str(h_res))
+                self.assertNotIn('blocked_by', str(h_res))
+                h_outcomes.append((h_res['moved'], h_res['feedback'], h_res['observation']))
+                a_outcomes.append((a_res['moved'], a_res['feedback'], a_res['observation']))
+
+            # Human and AI use identical authoritative transition logic
+            self.assertEqual(h_outcomes, a_outcomes)
+            self.assertTrue(h_outcomes[-1][2]['completed'])
+            self.assertEqual(h_outcomes[-1][1], 'completed')
+
+            events = [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines()]
+            ai_actions = [e for e in events if e['role'] == 'ai' and e['event_type'] == 'action']
+            self.assertEqual(len(ai_actions), len(seq))
+            self.assertEqual(ai_actions[2]['valid'], False)
+            self.assertEqual(ai_actions[2]['blocked_by'], 'gate')
+            self.assertEqual(ai_actions[5]['valid'], False)
+            self.assertEqual(ai_actions[5]['blocked_by'], 'gate')
+            self.assertEqual(ai_actions[-1]['outcome'], 'completed')
+            self.assertTrue(ai_actions[-1]['state_after']['completed'])
+
 
 if __name__ == '__main__':
     unittest.main()

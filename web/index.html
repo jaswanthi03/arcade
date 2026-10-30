@@ -29,13 +29,16 @@
            border-radius:4px;position:relative;overflow:hidden}
     .floor {background:#26374f} .wall {background:repeating-linear-gradient(135deg,#536987,#536987 5px,#4a607e 5px,#4a607e 10px)}
     .goal {background:#504527} .goal:before {content:'★';font-size:25px;color:#ffd86d}
-    .red_tile,.blue_tile {background:#26374f}
+    .red_tile,.blue_tile,.switch_tile {background:#26374f}
     .red_tile:before,.blue_tile:before {content:'';height:65%;width:65%;border-radius:100%;box-shadow:0 0 12px currentColor}
     .red_tile:before {background:#e86a78;color:#e86a78} .blue_tile:before {background:#55b6ef;color:#55b6ef}
-    .red_barrier,.blue_barrier,.neutral_barrier {border:2px solid currentColor}
+    .switch_tile:before {content:'';height:56%;width:56%;border-radius:5px;transform:rotate(45deg);background:#f5b942;color:#f5b942;box-shadow:0 0 12px currentColor}
+    .red_barrier,.blue_barrier,.neutral_barrier,.locked_barrier {border:2px solid currentColor}
     .red_barrier {color:#f18490;background:repeating-linear-gradient(0deg,#95344b,#95344b 5px,#572d40 5px,#572d40 10px)}
     .blue_barrier {color:#79ceff;background:repeating-linear-gradient(0deg,#21668e,#21668e 5px,#1d3f66 5px,#1d3f66 10px)}
     .neutral_barrier {color:#cbd5e1;background:repeating-linear-gradient(0deg,#64748b,#64748b 5px,#334155 5px,#334155 10px)}
+    .locked_barrier {color:#f5b942;background:repeating-linear-gradient(0deg,#8a5a19,#8a5a19 5px,#4e3514 5px,#4e3514 10px)}
+    .open_barrier {border:2px dashed #5a7391;background:#26374f}
     .player {width:68%;height:68%;z-index:1;border:3px solid #fff;border-radius:8px;background:#aeb9cb;
              box-shadow:0 0 0 3px #07101b88,0 0 14px #ffffff77}
     .player.red {background:#e86a78} .player.blue {background:#55b6ef}
@@ -78,6 +81,9 @@
           <option value="transfer">03 · Transfer</option>
           <option value="discovery_2">04 · Discovery</option>
           <option value="transfer_2">05 · Transfer</option>
+          <option value="discovery_3">06 · Discovery</option>
+          <option value="practice_3">07 · Practice</option>
+          <option value="transfer_3">08 · Transfer</option>
         </select></label>
         <button id="reset" class="subtle">↺ Reset room</button>
       </div>
@@ -188,7 +194,7 @@
     } catch(e) { notice.textContent = e.message; }
     finally { busy = false; }
   });
-  const levels = ['discovery','practice','transfer','discovery_2','transfer_2'];
+  const levels = ['discovery','practice','transfer','discovery_2','transfer_2','discovery_3','practice_3','transfer_3'];
   document.getElementById('next').addEventListener('click', () => {
     const index = levels.indexOf(level.value);
     if (index < levels.length-1) { level.value = levels[index+1]; newSession(); }

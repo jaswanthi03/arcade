@@ -67,6 +67,76 @@ class EngineTests(unittest.TestCase):
         self.assertFalse(retry_after_move.moved)
         self.assertEqual(retry_after_move.state.pending_gate, (4, 1))
 
+    def test_delayed_gate_opens_after_two_subsequent_valid_moves_and_stays_open(self):
+        level = LEVELS['discovery_3']
+        state = initial_state(level)
+
+        # Move to (3, 1) in front of locked delayed gate at (4, 1)
+        state = step(level, state, 'right').state
+        state = step(level, state, 'right').state
+        self.assertEqual((state.x, state.y), (3, 1))
+
+        # Gate is initially locked
+        blocked_initial = step(level, state, 'right')
+        self.assertFalse(blocked_initial.moved)
+        self.assertEqual(blocked_initial.feedback, 'blocked')
+        self.assertEqual(blocked_initial.blocked_by, 'gate')
+        self.assertFalse(blocked_initial.state.gate_open)
+
+        # Stepping down onto switch 'T' at (3, 2) starts activation (countdown=2, still closed)
+        on_switch = step(level, state, 'down')
+        self.assertTrue(on_switch.moved)
+        self.assertEqual((on_switch.state.x, on_switch.state.y), (3, 2))
+        self.assertEqual(on_switch.state.switch_countdown, 2)
+        self.assertFalse(on_switch.state.gate_open)
+
+        # Invalid/blocked move into wall at (4, 2) does NOT advance countdown
+        wall_bump = step(level, on_switch.state, 'right')
+        self.assertFalse(wall_bump.moved)
+        self.assertEqual(wall_bump.blocked_by, 'wall')
+        self.assertEqual(wall_bump.state.switch_countdown, 2)
+        self.assertFalse(wall_bump.state.gate_open)
+
+        # 1st subsequent valid move: up to (3, 1) -> countdown=1, gate still locked
+        move_one = step(level, wall_bump.state, 'up')
+        self.assertTrue(move_one.moved)
+        self.assertEqual((move_one.state.x, move_one.state.y), (3, 1))
+        self.assertEqual(move_one.state.switch_countdown, 1)
+        self.assertFalse(move_one.state.gate_open)
+
+        # Trying to enter the gate after only 1 subsequent valid move is blocked and does not advance counter
+        early_gate_try = step(level, move_one.state, 'right')
+        self.assertFalse(early_gate_try.moved)
+        self.assertEqual(early_gate_try.blocked_by, 'gate')
+        self.assertEqual(early_gate_try.state.switch_countdown, 1)
+        self.assertFalse(early_gate_try.state.gate_open)
+
+        # 2nd subsequent valid move: left to (2, 1) -> countdown=0, gate opens!
+        move_two = step(level, early_gate_try.state, 'left')
+        self.assertTrue(move_two.moved)
+        self.assertEqual(move_two.state.switch_countdown, 0)
+        self.assertTrue(move_two.state.gate_open)
+        self.assertEqual(observe(level, move_two.state)['grid'][1][4], 'open_barrier')
+
+        # Return to (3, 1) and cross (4, 1); gate remains open permanently
+        back_to_gate = step(level, move_two.state, 'right')
+        self.assertTrue(back_to_gate.moved)
+        self.assertTrue(back_to_gate.state.gate_open)
+        crossed = step(level, back_to_gate.state, 'right')
+        self.assertTrue(crossed.moved)
+        self.assertEqual((crossed.state.x, crossed.state.y), (4, 1))
+        self.assertTrue(crossed.state.gate_open)
+
+    def test_delayed_gate_observations_hide_countdown_and_rule(self):
+        level = LEVELS['discovery_3']
+        state = step(level, step(level, initial_state(level), 'right').state, 'right').state
+        activated = step(level, state, 'down').state
+        obs = observe(level, activated)
+        self.assertNotIn('switch_countdown', str(obs))
+        self.assertNotIn('countdown', str(obs).lower())
+        self.assertNotIn('delayed', str(obs).lower())
+        self.assertEqual(obs['grid'][1][4], 'locked_barrier')
+
     def test_inaccessible_gate_is_blocked_without_moving(self):
         level = LEVELS['discovery']
         state = State(3, 1)

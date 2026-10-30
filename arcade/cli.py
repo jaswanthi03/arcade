@@ -7,6 +7,7 @@ SYMBOLS = {
     'wall': '##', 'floor': '  ', 'goal': ' *',
     'red_tile': ' R', 'blue_tile': ' B',
     'red_barrier': '|r', 'blue_barrier': '|b', 'neutral_barrier': '|n',
+    'switch_tile': ' T', 'locked_barrier': '|d', 'open_barrier': ':d',
 }
 MOVES = {'w': 'up', 'a': 'left', 's': 'down', 'd': 'right'}
 

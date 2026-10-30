@@ -1,5 +1,6 @@
 """Private level definitions. Do not expose this module to evaluated AI agents."""
 from dataclasses import dataclass
+from .rules import MAP_CHARS
 
 @dataclass(frozen=True)
 class Level:
@@ -58,13 +59,36 @@ LEVELS = {
         "#...#R..#.#",
         "###########",
     )),
+    "discovery_3": Level("discovery_3", "Room 6 · Discovery", "discovery", (
+        "#########",
+        "#S..d..G#",
+        "#.#T#.###",
+        "#...#...#",
+        "#########",
+    )),
+    "practice_3": Level("practice_3", "Room 7 · Practice", "practice", (
+        "###########",
+        "#S..d....G#",
+        "#.#.#.###.#",
+        "#..T..#...#",
+        "###########",
+    )),
+    "transfer_3": Level("transfer_3", "Room 8 · Transfer", "transfer", (
+        "###########",
+        "#S....d..G#",
+        "#.###.#.#.#",
+        "#...T.#...#",
+        "#.###.###.#",
+        "#.........#",
+        "###########",
+    )),
 }
 
 def validate_level(level: Level) -> None:
     if not level.rows or any(len(row) != level.width for row in level.rows):
         raise ValueError(f"{level.identifier}: layout must be rectangular")
     chars = ''.join(level.rows)
-    if set(chars) - set('#.SGRBrbn'):
+    if set(chars) - MAP_CHARS:
         raise ValueError(f"{level.identifier}: unexpected map character")
     if chars.count('S') != 1 or chars.count('G') != 1:
         raise ValueError(f"{level.identifier}: expected one start and one goal")

@@ -3,6 +3,8 @@
 Run: python -m arcade.server
 API documentation: README.md. Do NOT expose this experimental server publicly.
 """
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer

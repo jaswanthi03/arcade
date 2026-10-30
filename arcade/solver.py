@@ -1,11 +1,13 @@
 """Private correctness oracle; NEVER an evaluated AI player's tool."""
+from __future__ import annotations
+
 from collections import deque
 from .levels import Level, LEVELS
 from .engine import ACTIONS, initial_state, step
 
 
 def shortest_solution(level: Level) -> list[str] | None:
-    """BFS over complete State (x, y, color, completed, pending_gate)."""
+    """BFS over complete State (x, y, color, completed, pending_gate, switch_countdown, gate_open)."""
     start = initial_state(level)
     q = deque([(start, [])])
     seen = {start}
